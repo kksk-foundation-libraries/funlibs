@@ -1,0 +1,8 @@
+package schema
+
+type TestObject struct {
+	field01			uint32
+	field02			uint32
+	field03			uint32
+	field04			uint32
+}
