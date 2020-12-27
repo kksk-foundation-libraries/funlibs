@@ -1,0 +1,11 @@
+package model
+
+type EventLogKey struct {
+	key					binary
+	id					binary
+}
+
+type EventLinkKey struct {
+	key					binary
+	id					binary
+}

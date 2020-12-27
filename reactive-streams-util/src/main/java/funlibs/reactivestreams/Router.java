@@ -19,15 +19,25 @@ import reactor.core.publisher.Sinks.Many;
 
 public class Router<T> implements Processor<T, T> {
 	private static final Logger LOG = LoggerFactory.getLogger(Router.class);
-	
+
+	public static final BiFunction<String, String, Boolean> DEFAULT_FAILURE_HANDLER = (signalType, emitResult) -> false;
+
 	private final Many<T> router;
 	private final Flux<T> flux;
 	private final EmitFailureHandler failureHandler;
 	private final LinkedList<Subscription> upstreams = new LinkedList<>();
 
+	public static <T> Router<T> buffer(int bufferSize) {
+		return buffer(bufferSize, DEFAULT_FAILURE_HANDLER);
+	}
+
 	public static <T> Router<T> buffer(int bufferSize, BiFunction<String, String, Boolean> failureHandler) {
 		Many<T> many = Sinks.many().multicast().onBackpressureBuffer(bufferSize, true);
 		return new Router<>(many, failureHandler);
+	}
+
+	public static <T> Router<T> direct() {
+		return direct(DEFAULT_FAILURE_HANDLER);
 	}
 
 	public static <T> Router<T> direct(BiFunction<String, String, Boolean> failureHandler) {
@@ -79,17 +89,17 @@ public class Router<T> implements Processor<T, T> {
 		flux.subscribe(s);
 		LOG.debug("subscribe called.");
 	}
-	
+
 	public void subscribe(Consumer<? super T> consumer) {
 		flux.subscribe(consumer);
 		LOG.debug("subscribe called.");
 	}
-	
+
 	public void subscribe(Consumer<? super T> consumer, Consumer<Throwable> errorConsumer) {
 		flux.subscribe(consumer, errorConsumer);
 		LOG.debug("subscribe called.");
 	}
-	
+
 	public void subscribe(Consumer<? super T> consumer, Consumer<Throwable> errorConsumer, Runnable completeConsumer) {
 		flux.subscribe(consumer, errorConsumer, completeConsumer);
 		LOG.debug("subscribe called.");
