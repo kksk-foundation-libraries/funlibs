@@ -32,6 +32,11 @@
 			<artifactId>colfer-adapter</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
+		<dependency>
+			<groupId>funlibs</groupId>
+			<artifactId>concurrent-util</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
 		<!-- 3rd party dependencies -->
 		<dependency>
 			<groupId>com.google.guava</groupId>
@@ -72,25 +77,4 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>net.quies.colfer</groupId>
-				<artifactId>colfer-maven-plugin</artifactId>
-				<version>1.12.1</version>
-				<executions>
-					<execution>
-						<id>generate-java-dto</id>
-						<goals>
-							<goal>compile</goal>
-						</goals>
-						<configuration>
-							<packagePrefix>funlibs.event.processing</packagePrefix>
-							<sourceTarget>${project.basedir}/src/main/java</sourceTarget>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
 </project>

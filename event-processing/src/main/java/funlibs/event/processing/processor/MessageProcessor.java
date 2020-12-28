@@ -2,11 +2,14 @@ package funlibs.event.processing.processor;
 
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import funlibs.reactivestreams.Router;
 import reactor.core.publisher.Flux;
 
 public abstract class MessageProcessor {
+	private static final Logger LOG = LoggerFactory.getLogger(MessageProcessor.class);
 	final Router<Message> upstream;
 	final Router<Message> downstream;
 	final Router<Message> abnormalstream;
@@ -27,13 +30,15 @@ public abstract class MessageProcessor {
 
 	public void _start() {
 		start();
+		Publisher<Message> receiver = receiver();
+		Subscriber<Message> sender = sender();
 		Flux //
-			.from(receiver()) //
-			.subscribe(upstream);
+		.from(downstream) //
+		.subscribe(sender) //
 		;
 		Flux //
-			.from(downstream) //
-			.subscribe(sender()) //
+			.from(receiver) //
+			.subscribe(upstream);
 		;
 		Subscriber<Message> abnormalSender = abnormalSender();
 		if (abnormalSender != null && abnormalstream != null) {
@@ -49,6 +54,9 @@ public abstract class MessageProcessor {
 	public void _stop() {
 		upstream.stop();
 		downstream.stop();
+		if (abnormalstream != null) {
+			abnormalstream.stop();
+		}
 		stop();
 	}
 

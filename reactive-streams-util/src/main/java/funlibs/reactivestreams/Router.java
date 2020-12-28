@@ -51,6 +51,7 @@ public class Router<T> implements Processor<T, T> {
 		this.failureHandler = new EmitFailureHandler() {
 			@Override
 			public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
+				LOG.debug("emit failured.");
 				return failureHandler.apply(signalType.toString(), emitResult.name());
 			}
 		};

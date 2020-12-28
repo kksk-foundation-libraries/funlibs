@@ -35,6 +35,7 @@ public class LocalBinaryStore implements BinaryStore {
 
 	private Lock writeLock(Binary binKey) {
 		ReadWriteLock readWriteLock = locks.computeIfAbsent(binKey, _key -> lockPool.get(_key));
+		lockCounter.computeIfAbsent(binKey, _key -> new AtomicInteger()).incrementAndGet();
 		return readWriteLock.writeLock();
 	}
 
