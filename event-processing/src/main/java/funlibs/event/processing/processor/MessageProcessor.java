@@ -2,17 +2,17 @@ package funlibs.event.processing.processor;
 
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import funlibs.reactivestreams.Router;
 import reactor.core.publisher.Flux;
 
 public abstract class MessageProcessor {
-	private static final Logger LOG = LoggerFactory.getLogger(MessageProcessor.class);
 	final Router<Message> upstream;
 	final Router<Message> downstream;
 	final Router<Message> abnormalstream;
+	protected Publisher<Message> receiver;
+	protected Subscriber<Message> sender;
+	protected Subscriber<Message> abnormalSender;
 
 	public MessageProcessor(Router<Message> upstream, Router<Message> downstream) {
 		this(upstream, downstream, null);
@@ -24,21 +24,22 @@ public abstract class MessageProcessor {
 		this.abnormalstream = abnormalstream;
 	}
 
-	protected abstract void start();
+	protected abstract void onStart();
 
-	protected abstract void stop();
+	protected abstract void onStop();
 
-	public void _start() {
-		start();
+	public void start() {
+		Thread t = new Thread(this::_start);
+		t.start();
+	}
+
+	private void _start() {
+		onStart();
 		Publisher<Message> receiver = receiver();
 		Subscriber<Message> sender = sender();
 		Flux //
-		.from(downstream) //
-		.subscribe(sender) //
-		;
-		Flux //
-			.from(receiver) //
-			.subscribe(upstream);
+			.from(downstream) //
+			.subscribe(sender) //
 		;
 		Subscriber<Message> abnormalSender = abnormalSender();
 		if (abnormalSender != null && abnormalstream != null) {
@@ -49,22 +50,38 @@ public abstract class MessageProcessor {
 		} else if (abnormalSender != null || abnormalstream != null) {
 			// FIXME
 		}
+		Flux //
+			.from(receiver) //
+			.subscribe(upstream);
+		;
 	}
 
-	public void _stop() {
+	public void stop() {
 		upstream.stop();
 		downstream.stop();
 		if (abnormalstream != null) {
 			abnormalstream.stop();
 		}
-		stop();
+		onStop();
 	}
 
-	protected abstract Publisher<Message> receiver();
+	protected void receiver(Publisher<Message> receiver) {
+		this.receiver = receiver;
+	}
 
-	protected abstract Subscriber<Message> sender();
+	protected Publisher<Message> receiver() {
+		return receiver;
+	}
+
+	protected void sender(Subscriber<Message> sender) {
+		this.sender = sender;
+	}
+
+	protected Subscriber<Message> sender() {
+		return sender;
+	}
 
 	protected Subscriber<Message> abnormalSender() {
-		return null;
+		return abnormalSender;
 	}
 }

@@ -9,8 +9,8 @@ import funlibs.reactivestreams.Router;
 import funlibs.serializer.ColferSerializer;
 import reactor.core.publisher.Flux;
 
-public abstract class SimpleOrderProcessor extends MessageProcessor {
-	private static final byte[] BLANK = new byte[8];
+public class SimpleOrderProcessor extends MessageProcessor {
+	private static final byte[] BLANK = new byte[1];
 	private final BinaryStore eventLog;
 	private final BinaryStore lowWaterMark;
 	private final BinaryStore eventLinkAsc;
@@ -33,7 +33,7 @@ public abstract class SimpleOrderProcessor extends MessageProcessor {
 	}
 
 	@Override
-	protected final void start() {
+	protected final void onStart() {
 		Flux<Message> flux0 = Flux //
 			.from(upstream) //
 			.map(msg -> {
@@ -92,7 +92,7 @@ public abstract class SimpleOrderProcessor extends MessageProcessor {
 	}
 
 	@Override
-	protected final void stop() {
+	protected final void onStop() {
 		eventLog.close();
 		lowWaterMark.close();
 		eventLinkAsc.close();

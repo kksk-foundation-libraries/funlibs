@@ -7,7 +7,7 @@ import funlibs.reactivestreams.Router;
 import funlibs.serializer.ColferSerializer;
 import reactor.core.publisher.Flux;
 
-public abstract class SimpleAsyncResultProcessor extends MessageProcessor {
+public class SimpleAsyncResultProcessor extends MessageProcessor {
 	private final BinaryStore eventLog;
 	private final BinaryStore lowWaterMark;
 	private final BinaryStore eventLinkAsc;
@@ -26,7 +26,7 @@ public abstract class SimpleAsyncResultProcessor extends MessageProcessor {
 	}
 
 	@Override
-	protected final void start() {
+	protected final void onStart() {
 		Flux<Message> flux = Flux //
 			.from(upstream) //
 			.map(msg -> {
@@ -67,7 +67,7 @@ public abstract class SimpleAsyncResultProcessor extends MessageProcessor {
 	}
 
 	@Override
-	protected final void stop() {
+	protected final void onStop() {
 		eventLog.close();
 		lowWaterMark.close();
 		eventLinkAsc.close();

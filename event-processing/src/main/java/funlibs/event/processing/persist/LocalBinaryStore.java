@@ -12,9 +12,16 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.common.util.concurrent.Striped;
 
+import funlibs.binary.Strings;
+
 public class LocalBinaryStore implements BinaryStore {
+	private static final Logger LOG = LoggerFactory.getLogger(LocalBinaryStore.class);
+
 	private ConcurrentMap<Binary, byte[]> map = new ConcurrentHashMap<>();
 	private final Striped<ReadWriteLock> lockPool = Striped.readWriteLock(10000);
 	private final ConcurrentMap<Binary, ReadWriteLock> locks = new ConcurrentHashMap<>();
@@ -248,6 +255,12 @@ public class LocalBinaryStore implements BinaryStore {
 		} finally {
 			whole.unlock();
 		}
+	}
+
+	public void dump() {
+		map.forEach((k, v) -> {
+			LOG.debug("name:{}, key:{}, value:{}", name, Strings.toHex(k.key), Strings.toHex(v));
+		});
 	}
 
 	private static class Binary {

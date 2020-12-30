@@ -4,7 +4,7 @@ import funlibs.binary.Bits;
 import funlibs.reactivestreams.Router;
 import reactor.core.publisher.Flux;
 
-public abstract class RetryProcessor extends MessageProcessor {
+public class RetryProcessor extends MessageProcessor {
 	private final long interval;
 
 	public RetryProcessor(long interval) {
@@ -13,7 +13,7 @@ public abstract class RetryProcessor extends MessageProcessor {
 	}
 
 	@Override
-	protected final void start() {
+	protected final void onStart() {
 		Flux //
 			.from(upstream) //
 			.map(msg -> {
@@ -38,7 +38,7 @@ public abstract class RetryProcessor extends MessageProcessor {
 	}
 
 	@Override
-	protected final void stop() {
+	protected final void onStop() {
 	}
 
 }

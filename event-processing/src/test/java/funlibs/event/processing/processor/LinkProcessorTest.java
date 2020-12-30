@@ -12,7 +12,7 @@ import funlibs.logging.SimpleLogging;
 import funlibs.reactivestreams.Router;
 import reactor.core.publisher.Flux;
 
-public class LoggingProcessorTest {
+public class LinkProcessorTest {
 	static final SimpleLogging ll = SimpleLogging.of() //
 		.loggingGroup("funlibs.event.processing")
 		.showDateTime() //
@@ -22,7 +22,7 @@ public class LoggingProcessorTest {
 		.loggingGroupLogLevel("DEBUG") //
 		.initialize() //
 	;
-	private static final Logger LOG = LoggerFactory.getLogger(LoggingProcessorTest.class);
+	private static final Logger LOG = LoggerFactory.getLogger(LinkProcessorTest.class);
 
 	@Test
 	public void test_001() {
@@ -38,22 +38,37 @@ public class LoggingProcessorTest {
 			LOG.debug("completed.");
 			blocker.unblock();
 		});
+		final Router<Message> linkReceiver = Router.direct();
 		final Router<Message> sender = Router.direct();
-		BinaryStore eventLog = new LocalBinaryStore("eventLog");
 		sender.subscribe(msg -> {
 			LOG.debug("key:{}", Strings.toHex(msg.key()));
 			LOG.debug("id:{}", Strings.toHex(msg.id()));
 			LOG.debug("value:{}", Strings.toHex(msg.value()));
 		});
-		LoggingProcessor processor = new LoggingProcessor(eventLog);
-		processor.receiver(receiver);
-		processor.sender(sender);
+		BinaryStore eventLog = new LocalBinaryStore("eventLog");
+		BinaryStore highWaterMark = new LocalBinaryStore("highWaterMark");
+		BinaryStore lowWaterMark = new LocalBinaryStore("lowWaterMark");
+		BinaryStore eventLinkAsc = new LocalBinaryStore("eventLinkAsc");
+		BinaryStore eventLinkDesc = new LocalBinaryStore("eventLinkDesc");
+		LoggingProcessor loggingProcessor = new LoggingProcessor(eventLog);
+		LinkProcessor linkProcessor = new LinkProcessor(highWaterMark, lowWaterMark, eventLinkAsc, eventLinkDesc);
+		loggingProcessor.receiver(receiver);
+		loggingProcessor.sender(linkReceiver);
+		linkProcessor.receiver(linkReceiver);
+		linkProcessor.sender(sender);
 		LOG.debug(">>>");
-		processor.start();
+		linkProcessor.start();
+		loggingProcessor.start();
 		blocker.blockSilent();
 		LOG.debug("dump");
 		((LocalBinaryStore)eventLog).dump();
+		((LocalBinaryStore)highWaterMark).dump();
+		((LocalBinaryStore)lowWaterMark).dump();
+		((LocalBinaryStore)eventLinkAsc).dump();
+		((LocalBinaryStore)eventLinkDesc).dump();
 		LOG.debug("closing");
-		processor.stop();
+		loggingProcessor.stop();
+		linkProcessor.stop();
 	}
+
 }

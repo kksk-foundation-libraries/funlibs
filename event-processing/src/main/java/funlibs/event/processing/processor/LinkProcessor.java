@@ -1,5 +1,8 @@
 package funlibs.event.processing.processor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import funlibs.binary.Bits;
 import funlibs.event.processing.model.EventLinkKey;
 import funlibs.event.processing.persist.BinaryStore;
@@ -7,8 +10,10 @@ import funlibs.reactivestreams.Router;
 import funlibs.serializer.ColferSerializer;
 import reactor.core.publisher.Flux;
 
-public abstract class LinkProcessor extends MessageProcessor {
-	private static final byte[] BLANK = new byte[8];
+public class LinkProcessor extends MessageProcessor {
+	private static final Logger LOG = LoggerFactory.getLogger(LinkProcessor.class);
+
+	private static final byte[] BLANK = new byte[1];
 	private final BinaryStore highWaterMark;
 	private final BinaryStore lowWaterMark;
 	private final BinaryStore eventLinkAsc;
@@ -24,13 +29,14 @@ public abstract class LinkProcessor extends MessageProcessor {
 	}
 
 	@Override
-	protected final void start() {
+	protected final void onStart() {
+		LOG.debug("onStart");
 		Flux //
 			.from(upstream) //
 			.map(msg -> {
 				byte[] previous = highWaterMark.get(msg.key());
 				if (previous == null) {
-					previous = BLANK;
+					previous = eventLinkKeySerializer.serialize(new EventLinkKey().withKey(msg.key()).withId(BLANK));
 				}
 				byte[] eventLinkKey = eventLinkKeySerializer.serialize(new EventLinkKey().withKey(msg.key()).withId(msg.value()));
 				eventLinkDesc.put(eventLinkKey, previous);
@@ -50,7 +56,8 @@ public abstract class LinkProcessor extends MessageProcessor {
 	}
 
 	@Override
-	protected final void stop() {
+	protected final void onStop() {
+		LOG.debug("onStop");
 		highWaterMark.close();
 		lowWaterMark.close();
 		eventLinkAsc.close();
