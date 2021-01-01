@@ -258,9 +258,11 @@ public class LocalBinaryStore implements BinaryStore {
 	}
 
 	public void dump() {
-		map.forEach((k, v) -> {
-			LOG.debug("name:{}, key:{}, value:{}", name, Strings.toHex(k.key), Strings.toHex(v));
-		});
+		if (LOG.isDebugEnabled()) {
+			map.forEach((k, v) -> {
+				LOG.debug("name:{}, key:{}, value:{}", name, Strings.toHex(k.key), Strings.toHex(v));
+			});
+		}
 	}
 
 	private static class Binary {
