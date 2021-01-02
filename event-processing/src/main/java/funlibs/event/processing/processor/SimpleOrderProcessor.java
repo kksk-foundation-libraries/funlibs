@@ -15,6 +15,9 @@ import reactor.core.publisher.Flux;
 
 public class SimpleOrderProcessor extends MessageProcessor {
 	private static final Logger LOG = LoggerFactory.getLogger(SimpleOrderProcessor.class);
+
+	private static final byte[] BLANK = new byte[1];
+
 	private final BinaryStore eventLog;
 	private final BinaryStore lowWaterMark;
 	private final BinaryStore eventLinkAsc;
@@ -44,11 +47,13 @@ public class SimpleOrderProcessor extends MessageProcessor {
 			.from(upstream) //
 			.map(msg -> {
 				byte[] previous = lowWaterMark.get(msg.key());
+				if (previous == null) {
+					previous = BLANK;
+				}
 				EventLinkKey eventLinkKeyPrevious = new EventLinkKey().withKey(msg.key()).withId(previous);
 				byte[] current = eventLinkAsc.get(eventLinkKeySerializer.serialize(eventLinkKeyPrevious));
 				EventLinkKey eventLinkKeyCurrent = eventLinkKeyDeserializer.deserialize(current);
 				msg.id(eventLinkKeyCurrent.getId());
-				msg.put("previous", previous);
 				msg.normal(inProgress.putIfAbsent(msg.key(), eventLinkKeyCurrent.getId()));
 				return msg;
 			}) //
@@ -68,22 +73,23 @@ public class SimpleOrderProcessor extends MessageProcessor {
 			flux1 = flux0 //
 				.map(msg -> {
 					if (msg.normal()) {
-						byte[] eventLinkKey = eventLinkKeySerializer.serialize(new EventLinkKey().withKey(msg.key()).withId(msg.id()));
-						byte[] next = eventLinkAsc.getAndRemove(eventLinkKey);
-						byte[] previous = msg.get("previous");
-						byte[] eventLinkKeyPrevious = eventLinkKeySerializer.serialize(new EventLinkKey().withKey(msg.key()).withId(previous));
-						inProgress.remove(msg.key());
-						if (next != null) {
-							byte[] eventLinkKeyNext = eventLinkKeySerializer.serialize(new EventLinkKey().withKey(msg.key()).withId(next));
-							eventLinkDesc.put(eventLinkKeyNext, previous);
-							eventLinkAsc.put(eventLinkKeyPrevious, next);
-						} else {
-							eventLinkAsc.remove(eventLinkKeyPrevious);
-						}
-						eventLinkDesc.remove(eventLinkKey);
 						eventLog.remove(msg.get("eventLogKey"));
 						lowWaterMark.put(msg.key(), msg.id());
-
+						inProgress.remove(msg.key());
+						byte[] key = msg.key();
+						byte[] id = msg.id();
+						EventLinkKey eventLinkKey = new EventLinkKey().withKey(key).withId(id);
+						byte[] curr = eventLinkKeySerializer.serialize(eventLinkKey);
+						byte[] next = eventLinkAsc.get(curr);
+						byte[] prev = eventLinkDesc.get(curr);
+						if (prev != null && next != null) {
+							eventLinkAsc.put(prev, next);
+							eventLinkDesc.put(next, prev);
+						} else if (prev != null && next == null) {
+							eventLinkAsc.remove(prev);
+						}
+						eventLinkAsc.remove(curr);
+						eventLinkDesc.remove(curr);
 					}
 					return msg;
 				}) //
@@ -105,6 +111,7 @@ public class SimpleOrderProcessor extends MessageProcessor {
 		eventLog.close();
 		lowWaterMark.close();
 		eventLinkAsc.close();
+		eventLinkDesc.close();
 		inProgress.close();
 	}
 }

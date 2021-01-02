@@ -24,7 +24,7 @@ public class SimpleOrderProcessorTest {
 	private static final Logger LOG = LoggerFactory.getLogger(SimpleOrderProcessorTest.class);
 
 	@Test
-	public void test() {
+	public void test_001() {
 		final Blocker blocker = new Blocker();
 		final Flux<Message> receiver = Flux.range(1, 10).map(index -> {
 			LOG.debug("index:{}", index);
@@ -37,7 +37,6 @@ public class SimpleOrderProcessorTest {
 			LOG.debug("completed.");
 			blocker.unblock();
 		});
-		final Router<Message> linkReceiver = Router.direct();
 		final Router<Message> orderReceiver = Router.direct();
 		final Router<Message> sender = Router.direct();
 		sender.subscribe(msg -> {
@@ -49,8 +48,7 @@ public class SimpleOrderProcessorTest {
 		BinaryStore eventLinkAsc = new LocalBinaryStore("eventLinkAsc");
 		BinaryStore eventLinkDesc = new LocalBinaryStore("eventLinkDesc");
 		BinaryStore inProgress = new LocalBinaryStore("inProgress");
-		LoggingProcessor loggingProcessor = new LoggingProcessor(eventLog);
-		LinkProcessor linkProcessor = new LinkProcessor(highWaterMark, lowWaterMark, eventLinkAsc, eventLinkDesc);
+		LoggingProcessor loggingProcessor = new LoggingProcessor(eventLog, highWaterMark, lowWaterMark, eventLinkAsc, eventLinkDesc);
 		SimpleOrderProcessor orderProcessor = new SimpleOrderProcessor(eventLog, lowWaterMark, eventLinkAsc, eventLinkDesc, inProgress, true, //
 			(k, v) -> {
 				LOG.debug("processing... key:{}, value:{}", Strings.toHex(k), Strings.toHex(v));
@@ -58,14 +56,11 @@ public class SimpleOrderProcessorTest {
 			} //
 		);
 		loggingProcessor.receiver(receiver);
-		loggingProcessor.sender(linkReceiver);
-		linkProcessor.receiver(linkReceiver);
-		linkProcessor.sender(orderReceiver);
+		loggingProcessor.sender(orderReceiver);
 		orderProcessor.receiver(orderReceiver);
 		orderProcessor.sender(sender);
 		LOG.debug(">>>");
 		orderProcessor.start();
-		linkProcessor.start();
 		loggingProcessor.start();
 		blocker.blockSilent();
 		LOG.debug("dump");
@@ -77,8 +72,58 @@ public class SimpleOrderProcessorTest {
 		((LocalBinaryStore) inProgress).dump();
 		LOG.debug("closing");
 		loggingProcessor.stop();
-		linkProcessor.stop();
 		orderProcessor.stop();
 	}
 
+	@Test
+	public void test_002() {
+		final Blocker blocker = new Blocker();
+		final Flux<Message> receiver = Flux.range(1, 10).map(index -> {
+			LOG.debug("index:{}", index);
+			Message msg = new Message();
+			msg.key(("key-1").getBytes());
+			msg.id(("id-" + index).getBytes());
+			msg.value(("value-" + index).getBytes());
+			return msg;
+		}).doOnTerminate(() -> {
+			LOG.debug("completed.");
+			blocker.unblock();
+		});
+		final Router<Message> orderReceiver = Router.direct();
+		final Router<Message> sender = Router.direct();
+		sender.subscribe(msg -> {
+			LOG.debug("key:{}, id:{}, value:{}", Strings.toHex(msg.key()), Strings.toHex(msg.id()), Strings.toHex(msg.value()));
+		});
+		BinaryStore eventLog = new LocalBinaryStore("eventLog");
+		BinaryStore highWaterMark = new LocalBinaryStore("highWaterMark");
+		BinaryStore lowWaterMark = new LocalBinaryStore("lowWaterMark");
+		BinaryStore eventLinkAsc = new LocalBinaryStore("eventLinkAsc");
+		BinaryStore eventLinkDesc = new LocalBinaryStore("eventLinkDesc");
+		BinaryStore inProgress = new LocalBinaryStore("inProgress");
+		LoggingProcessor loggingProcessor = new LoggingProcessor(eventLog, highWaterMark, lowWaterMark, eventLinkAsc, eventLinkDesc);
+		SimpleOrderProcessor orderProcessor = new SimpleOrderProcessor(eventLog, lowWaterMark, eventLinkAsc, eventLinkDesc, inProgress, true, //
+			(k, v) -> {
+				LOG.debug("processing... key:{}, value:{}", Strings.toHex(k), Strings.toHex(v));
+				return true;
+			} //
+		);
+		loggingProcessor.receiver(receiver);
+		loggingProcessor.sender(orderReceiver);
+		orderProcessor.receiver(orderReceiver);
+		orderProcessor.sender(sender);
+		LOG.debug(">>>");
+		orderProcessor.start();
+		loggingProcessor.start();
+		blocker.blockSilent();
+		LOG.debug("dump");
+		((LocalBinaryStore) eventLog).dump();
+		((LocalBinaryStore) highWaterMark).dump();
+		((LocalBinaryStore) lowWaterMark).dump();
+		((LocalBinaryStore) eventLinkAsc).dump();
+		((LocalBinaryStore) eventLinkDesc).dump();
+		((LocalBinaryStore) inProgress).dump();
+		LOG.debug("closing");
+		loggingProcessor.stop();
+		orderProcessor.stop();
+	}
 }
