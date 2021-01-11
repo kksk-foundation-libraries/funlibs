@@ -1,11 +1,27 @@
 package model
 
-type EventLogKey struct {
+type EventKey struct {
 	key					binary
 	id					binary
 }
 
-type EventLinkKey struct {
+type QueueKey struct {
+	dataType			uint8
 	key					binary
-	id					binary
+	curr				uint64
 }
+
+type QueueNode struct {
+	prev				uint64
+	next				uint64
+}
+
+type QueueWaterMarkKey struct {
+	dataType			uint8
+	key					binary
+}
+
+type QueueWaterMarkValue struct {
+	curr				uint64
+}
+

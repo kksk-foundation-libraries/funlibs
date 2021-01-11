@@ -1,5 +1,6 @@
 package funlibs.concurrent;
 
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 
 public class ConcurrentUtil {
@@ -18,6 +19,13 @@ public class ConcurrentUtil {
 			return future.get();
 		} catch (Exception e) {
 			return null;
+		}
+	}
+	
+	public static final void awaitSilent(CountDownLatch latch) {
+		try {
+			latch.await();
+		} catch (InterruptedException e) {
 		}
 	}
 }

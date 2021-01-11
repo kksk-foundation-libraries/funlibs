@@ -6,7 +6,7 @@ public class SimpleLogging {
 		StackTraceElement[] stackTrace = t.getStackTrace();
 		SimpleLogging simpleLogging = new SimpleLogging();
 		if (stackTrace.length > 1) {
-			simpleLogging.loggingGroup = stackTrace[1].getClassName();
+			simpleLogging.loggingGroup = new String[] { stackTrace[1].getClassName() };
 		}
 		return simpleLogging;
 	}
@@ -28,9 +28,9 @@ public class SimpleLogging {
 		SimpleLogging simpleLogging = new SimpleLogging();
 		if (stackTrace.length > 1) {
 			try {
-				simpleLogging.loggingGroup = Class.forName(stackTrace[1].getClassName()).getPackage().getName();
+				simpleLogging.loggingGroup = new String[] { Class.forName(stackTrace[1].getClassName()).getPackage().getName() };
 			} catch (ClassNotFoundException e) {
-				simpleLogging.loggingGroup = stackTrace[1].getClassName();
+				simpleLogging.loggingGroup = new String[] { stackTrace[1].getClassName() };
 			}
 		}
 		return simpleLogging //
@@ -61,7 +61,7 @@ public class SimpleLogging {
 	private String dateTimeFormat = null;
 	private boolean showThreadName = false;
 	private boolean showShortLogName = false;
-	private String loggingGroup = null;
+	private String[] loggingGroup = null;
 	private String loggingGroupLogLevel = null;
 	private String defalutLogLevel = null;
 	private boolean showLogName = true;
@@ -87,7 +87,7 @@ public class SimpleLogging {
 		return this;
 	}
 
-	public SimpleLogging loggingGroup(String loggingGroup) {
+	public SimpleLogging loggingGroup(String... loggingGroup) {
 		this.loggingGroup = loggingGroup;
 		return this;
 	}
@@ -132,7 +132,9 @@ public class SimpleLogging {
 			System.setProperty("org.slf4j.simpleLogger.levelInBrackets", "true");
 		}
 		if (loggingGroupLogLevel != null && loggingGroup != null) {
-			System.setProperty("org.slf4j.simpleLogger.log." + loggingGroup, loggingGroupLogLevel);
+			for (String g : loggingGroup) {
+				System.setProperty("org.slf4j.simpleLogger.log." + g, loggingGroupLogLevel);
+			}
 		} else if (defalutLogLevel != null) {
 			System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", defalutLogLevel);
 		} else {

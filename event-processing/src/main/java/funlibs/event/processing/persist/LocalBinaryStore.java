@@ -294,4 +294,9 @@ public class LocalBinaryStore implements BinaryStore {
 			return true;
 		}
 	}
+
+	@Override
+	public int size() {
+		return map.size();
+	}
 }

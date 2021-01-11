@@ -1,7 +1,6 @@
 package funlibs.reactivestreams;
 
 import java.util.LinkedList;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 import org.reactivestreams.Processor;
@@ -11,50 +10,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.SignalType;
 import reactor.core.publisher.Sinks;
-import reactor.core.publisher.Sinks.EmitFailureHandler;
 import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.publisher.Sinks.Many;
 
 public class Router<T> implements Processor<T, T> {
 	private static final Logger LOG = LoggerFactory.getLogger(Router.class);
 
-	public static final BiFunction<String, String, Boolean> DEFAULT_FAILURE_HANDLER = (signalType, emitResult) -> false;
-
 	private final Many<T> router;
 	private final Flux<T> flux;
-	private final EmitFailureHandler failureHandler;
 	private final LinkedList<Subscription> upstreams = new LinkedList<>();
 
 	public static <T> Router<T> buffer(int bufferSize) {
-		return buffer(bufferSize, DEFAULT_FAILURE_HANDLER);
-	}
-
-	public static <T> Router<T> buffer(int bufferSize, BiFunction<String, String, Boolean> failureHandler) {
-		Many<T> many = Sinks.many().multicast().onBackpressureBuffer(bufferSize, true);
-		return new Router<>(many, failureHandler);
+		Many<T> many = Sinks.many().multicast().onBackpressureBuffer(bufferSize);
+		return new Router<>(many);
 	}
 
 	public static <T> Router<T> direct() {
-		return direct(DEFAULT_FAILURE_HANDLER);
-	}
-
-	public static <T> Router<T> direct(BiFunction<String, String, Boolean> failureHandler) {
 		Many<T> many = Sinks.many().multicast().directBestEffort();
-		return new Router<>(many, failureHandler);
+		return new Router<>(many);
 	}
 
-	public Router(Many<T> router, BiFunction<String, String, Boolean> failureHandler) {
+	public Router(Many<T> router) {
 		this.router = router;
 		this.flux = router.asFlux();
-		this.failureHandler = new EmitFailureHandler() {
-			@Override
-			public boolean onEmitFailure(SignalType signalType, EmitResult emitResult) {
-				LOG.debug("emit failured.");
-				return failureHandler.apply(signalType.toString(), emitResult.name());
-			}
-		};
 	}
 
 	@Override
@@ -65,13 +44,29 @@ public class Router<T> implements Processor<T, T> {
 
 	@Override
 	public void onNext(T t) {
-		router.emitNext(t, failureHandler);
+		EmitResult res;
+		res = router.tryEmitNext(t);
+		while (!res.isSuccess()) {
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+			}
+			res = router.tryEmitNext(t);
+		}
 		upstreams.forEach(s -> s.request(1));
 	}
 
 	@Override
 	public void onError(Throwable t) {
-		router.emitError(t, failureHandler);
+		EmitResult res;
+		res = router.tryEmitError(t);
+		while (!res.isSuccess()) {
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+			}
+			res = router.tryEmitError(t);
+		}
 	}
 
 	@Override
@@ -81,7 +76,15 @@ public class Router<T> implements Processor<T, T> {
 
 	public void stop() {
 		upstreams.forEach(s -> s.cancel());
-		router.emitComplete(failureHandler);
+		EmitResult res;
+		res = router.tryEmitComplete();
+		while (!res.isSuccess()) {
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+			}
+			res = router.tryEmitComplete();
+		}
 		LOG.debug("stop called.");
 	}
 

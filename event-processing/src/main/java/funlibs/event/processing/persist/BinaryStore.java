@@ -41,4 +41,6 @@ public interface BinaryStore {
 	void close();
 
 	boolean isClosed();
+
+	int size();
 }

@@ -24,6 +24,9 @@ public class ColferDeserializer<T> {
 	}
 
 	public T deserialize(byte[] bin) {
+		if (bin == null || bin.length == 0) {
+			return null;
+		}
 		try {
 			T obj = constructor.newInstance();
 			unmarshalMethod.invoke(obj, bin, 0);

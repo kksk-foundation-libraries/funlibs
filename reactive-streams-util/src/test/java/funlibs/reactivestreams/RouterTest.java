@@ -1,10 +1,9 @@
 package funlibs.reactivestreams;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 import org.junit.Test;
@@ -49,8 +48,7 @@ public class RouterTest {
 			sink.onCancel(() -> fluxSink2.set(null));
 			blocker_1_2.unblock();
 		});
-		BiFunction<String, String, Boolean> failureHandler = (signalType, emitResult) -> false;
-		Router<Integer> router1 = Router.direct(failureHandler);
+		Router<Integer> router1 = Router.direct();
 		flux1.subscribe(router1);
 		flux2.subscribe(router1);
 		router1.subscribe(t -> result.add("data..(1):" + t), t -> {
