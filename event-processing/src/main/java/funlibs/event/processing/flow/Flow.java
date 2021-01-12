@@ -21,8 +21,8 @@ import reactor.core.publisher.Sinks.EmitResult;
 import reactor.core.publisher.Sinks.Many;
 import reactor.core.scheduler.Schedulers;
 
-public class LocalFlow {
-	private static final Logger LOG = LoggerFactory.getLogger(LocalFlow.class);
+public class Flow {
+	private static final Logger LOG = LoggerFactory.getLogger(Flow.class);
 	private PartitionedLock locks;
 	private BinaryStore eventLink;
 	private BinaryStore inProgress;
@@ -48,7 +48,7 @@ public class LocalFlow {
 	protected final Many<Message> retryIn = Sinks.many().unicast().onBackpressureBuffer();
 	protected final Many<Message> retryToProcess = Sinks.many().unicast().onBackpressureBuffer();
 
-	public LocalFlow(PartitionedLock locks, BinaryStore eventLink, BinaryStore inProgress, Publisher<Message> input, BiFunction<byte[], byte[], Boolean> eventProcessor, long interval) {
+	public Flow(PartitionedLock locks, BinaryStore eventLink, BinaryStore inProgress, Publisher<Message> input, BiFunction<byte[], byte[], Boolean> eventProcessor, long interval) {
 		this.locks = locks;
 		this.eventLink = eventLink;
 		this.inProgress = inProgress;
@@ -57,17 +57,17 @@ public class LocalFlow {
 		this.interval = interval;
 	}
 
-	public LocalFlow processParallelism(int processParallelism) {
+	public Flow processParallelism(int processParallelism) {
 		this.processParallelism = processParallelism;
 		return this;
 	}
 
-	public LocalFlow checkParallelism(int checkParallelism) {
+	public Flow checkParallelism(int checkParallelism) {
 		this.checkParallelism = checkParallelism;
 		return this;
 	}
 
-	public LocalFlow retryParallelism(int retryParallelism) {
+	public Flow retryParallelism(int retryParallelism) {
 		this.retryParallelism = retryParallelism;
 		return this;
 	}

@@ -14,11 +14,11 @@ import funlibs.event.processing.persist.LocalBinaryStore;
 import funlibs.logging.SimpleLogging;
 import reactor.core.publisher.Flux;
 
-public class LocalFlowTest {
+public class FlowTest {
 	static final SimpleLogging ll = SimpleLogging.of() //
 		//		.loggingGroup("funlibs.event.processing.processor.SimpleOrderProcessor","funlibs.event.processing.processor.LoggingProcessor") //
 //		.loggingGroup("funlibs.event.processing") //
-		.loggingGroup("funlibs.event.processing.flow.LocalFlowTest") //
+		.loggingGroup("funlibs.event.processing.flow.FlowTest") //
 		.showDateTime() //
 		.showShortLogName() //
 		.showThreadName() //
@@ -26,7 +26,7 @@ public class LocalFlowTest {
 		.loggingGroupLogLevel("DEBUG") //
 		.initialize() //
 	;
-	static final Logger LOG = LoggerFactory.getLogger(LocalFlowTest.class);
+	static final Logger LOG = LoggerFactory.getLogger(FlowTest.class);
 
 	@Test
 	public void test() {
@@ -49,7 +49,7 @@ public class LocalFlowTest {
 			LOG.debug("key:{}, value:{}", new String(k), new String(v));
 			return true;
 		};
-		LocalFlow flow = new LocalFlow(new PartitionedLock(10241), eventLink, inProgress, input, eventProcessor, 10L);
+		Flow flow = new Flow(new PartitionedLock(10241), eventLink, inProgress, input, eventProcessor, 10L);
 		flow.processParallelism(4).checkParallelism(4).retryParallelism(2);
 		//new LocalFlow(new PartitionedLock(10241), eventLink, inProgress, input, eventProcessor);
 		flow.start();
