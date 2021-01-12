@@ -16,4 +16,6 @@ public class Message {
 	private boolean normal = true;
 	private boolean retry = false;
 	private boolean result = true;
+	
+	private Object meta;
 }
