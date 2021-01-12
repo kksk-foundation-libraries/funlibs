@@ -24,11 +24,12 @@ import funlibs.serializer.ColferDeserializer;
 import funlibs.serializer.ColferSerializer;
 
 public class BinaryQueue extends AbstractSequentialList<byte[]> {
-	private static final byte TYPE_VALUE = 5;
+	private static final byte TYPE_SIZE = 0;
 	private static final byte TYPE_NODE = 1;
 	private static final byte TYPE_FIRST = 2;
 	private static final byte TYPE_LAST = 3;
 	private static final byte TYPE_SEQ = 4;
+	private static final byte TYPE_VALUE = 5;
 	private static final Long NONE = Long.valueOf(0L);
 
 	private final AtomicLong seq = new AtomicLong();
@@ -47,6 +48,7 @@ public class BinaryQueue extends AbstractSequentialList<byte[]> {
 	private final byte[] key_first;
 	private final byte[] key_last;
 	private final byte[] key_seq;
+	private final byte[] key_size;
 	private final BinaryStore store;
 
 	public BinaryQueue(byte[] key, BinaryStore store) {
@@ -55,19 +57,11 @@ public class BinaryQueue extends AbstractSequentialList<byte[]> {
 		this.key_first = QUEUE_WATER_MARK_KEY_SERIALIZER.serialize(new QueueWaterMarkKey().withDataType(TYPE_FIRST).withKey(key));
 		this.key_last = QUEUE_WATER_MARK_KEY_SERIALIZER.serialize(new QueueWaterMarkKey().withDataType(TYPE_LAST).withKey(key));
 		this.key_seq = QUEUE_WATER_MARK_KEY_SERIALIZER.serialize(new QueueWaterMarkKey().withDataType(TYPE_SEQ).withKey(key));
+		this.key_size = QUEUE_WATER_MARK_KEY_SERIALIZER.serialize(new QueueWaterMarkKey().withDataType(TYPE_SIZE).withKey(key));
 		first = node(store.get(key_first));
 		last = node(store.get(key_last));
 		seq.set(lastSeq());
-		if (first == null) {
-			size = 0;
-		} else {
-			size++;
-			Node f = first;
-			while (!NONE.equals(f.next)) {
-				size++;
-				f = loadNode(f.next);
-			}
-		}
+		loadSize();
 	}
 
 	private Node node(byte[] value) {
@@ -121,6 +115,24 @@ public class BinaryQueue extends AbstractSequentialList<byte[]> {
 		Long prev = node.getPrev();
 		Long next = node.getNext();
 		return new Node(prev, curr, next);
+	}
+
+	private void loadSize() {
+		QueueWaterMarkValue value = QUEUE_WATER_MARK_VALUE_DESERIALIZER.deserialize(store.get(key_size));
+		if (value == null) {
+			size = 0;
+		} else {
+			size = (int) value.getCurr();
+		}
+	}
+
+	private void saveSize() {
+		if (size == 0) {
+			store.remove(key_size);
+		} else {
+			byte[] value = QUEUE_WATER_MARK_VALUE_SERIALIZER.serialize(new QueueWaterMarkValue().withCurr(size));
+			store.put(key_size, value);
+		}
 	}
 
 	private void saveFirst() {
@@ -179,6 +191,7 @@ public class BinaryQueue extends AbstractSequentialList<byte[]> {
 			saveNode(f);
 		}
 		size++;
+		saveSize();
 		modCount++;
 	}
 
@@ -199,6 +212,7 @@ public class BinaryQueue extends AbstractSequentialList<byte[]> {
 			saveNode(l);
 		}
 		size++;
+		saveSize();
 		modCount++;
 	}
 
@@ -220,6 +234,7 @@ public class BinaryQueue extends AbstractSequentialList<byte[]> {
 			saveNode(pred);
 		}
 		size++;
+		saveSize();
 		modCount++;
 	}
 
@@ -243,6 +258,7 @@ public class BinaryQueue extends AbstractSequentialList<byte[]> {
 		}
 		deleteNode(curr);
 		size--;
+		saveSize();
 		modCount++;
 		return curr;
 	}
@@ -267,6 +283,7 @@ public class BinaryQueue extends AbstractSequentialList<byte[]> {
 		}
 		deleteNode(curr);
 		size--;
+		saveSize();
 		modCount++;
 		return curr;
 	}
@@ -301,6 +318,7 @@ public class BinaryQueue extends AbstractSequentialList<byte[]> {
 		deleteNode(curr);
 		x.curr = NONE;
 		size--;
+		saveSize();
 		modCount++;
 		return curr;
 	}
