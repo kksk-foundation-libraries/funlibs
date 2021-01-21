@@ -13,6 +13,7 @@ public class Message {
 	private long timestamp;
 
 	private String from;
+	private String to;
 	private boolean normal = true;
 	private boolean retry = false;
 	private boolean result = true;

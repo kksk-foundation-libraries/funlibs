@@ -1,0 +1,41 @@
+package model
+
+type QueueKey struct {
+	key					binary
+}
+
+type QueueInfo struct {
+	offset				uint64
+	first				uint64
+	last				uint64
+	size				uint32
+}
+
+type QueueNodeKey struct {
+	key					binary
+	offset				uint64
+}
+
+type QueueNodeInfo struct {
+	prev				uint64
+	next				uint64
+}
+
+type EntryKey struct {
+	key					binary
+	offset				uint64
+}
+
+type EntryValue struct {
+	value				binary
+}
+
+type PartitionKey struct {
+	topicId				uint64
+	partition			uint32
+}
+
+type KeyValue struct {
+	key					binary
+	value				binary
+}
