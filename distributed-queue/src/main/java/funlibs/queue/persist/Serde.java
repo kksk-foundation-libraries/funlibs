@@ -16,6 +16,7 @@ import funlibs.queue.model.QueueInfo;
 import funlibs.queue.model.QueueKey;
 import funlibs.queue.model.QueueNodeInfo;
 import funlibs.queue.model.QueueNodeKey;
+import funlibs.queue.model.SubscribedKey;
 import funlibs.serializer.kryo.KryoColferSerializer;
 
 public class Serde {
@@ -32,6 +33,7 @@ public class Serde {
 		map.put(pos++, EntryValue.class);
 		map.put(pos++, PartitionKey.class);
 		map.put(pos++, KeyValue.class);
+		map.put(pos++, SubscribedKey.class);
 		pool = new KryoPool.Builder(KryoColferSerializer.factory(map)).build();
 	}
 
@@ -57,6 +59,8 @@ public class Serde {
 
 	@SuppressWarnings("unchecked")
 	public <T> T des(byte[] bytes, Class<T> clazz) {
+		if (bytes == null)
+			return null;
 		Input input = new Input(bytes);
 		Kryo kryo = borrow();
 		try {

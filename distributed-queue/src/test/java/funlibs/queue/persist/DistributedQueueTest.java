@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import funlibs.concurrent.PartitionedReadWriteLock;
 import funlibs.logging.SimpleLogging;
+import funlibs.queue.model.KeyValue;
 
 public class DistributedQueueTest {
 	static final SimpleLogging ll = SimpleLogging.of() //
@@ -28,8 +29,8 @@ public class DistributedQueueTest {
 		for (int i = 0; i < 10; i++) {
 			byte[] k = ("k" + i).getBytes();
 			while (queue.peek(k) != null) {
-				byte[] v = queue.poll(k);
-				LOG.debug("k:{}, v:{}", new String(k), new String(v));
+				KeyValue v = queue.poll(k);
+				LOG.debug("k:{}, v:{}", new String(v.getKey()), new String(v.getValue()));
 			}
 		}
 		//		fail("Not yet implemented");

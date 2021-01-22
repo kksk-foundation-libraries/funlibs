@@ -1,5 +1,6 @@
 package funlibs.queue.persist;
 
+import java.util.Arrays;
 import java.util.concurrent.locks.Lock;
 
 import org.slf4j.Logger;
@@ -8,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import funlibs.concurrent.PartitionedReadWriteLock;
 import funlibs.queue.model.EntryKey;
 import funlibs.queue.model.EntryValue;
+import funlibs.queue.model.KeyValue;
 import funlibs.queue.model.QueueInfo;
 import funlibs.queue.model.QueueKey;
 import funlibs.queue.model.QueueNodeInfo;
@@ -65,7 +67,7 @@ public class DistributedQueue {
 		}
 	}
 
-	public byte[] poll(byte[] key) {
+	public KeyValue poll(byte[] key) {
 		Lock lock = locks.writeLock(key);
 		try {
 			lock.lock();
@@ -95,13 +97,13 @@ public class DistributedQueue {
 			}
 			byte[] value = getEntryValue(key, curr);
 			removeEntryValue(key, curr);
-			return value;
+			return new KeyValue().withKey(key).withValue(value).withOffset(curr);
 		} finally {
 			lock.unlock();
 		}
 	}
 
-	public byte[] peek(byte[] key) {
+	public KeyValue peek(byte[] key) {
 		Lock lock = locks.readLock(key);
 		try {
 			lock.lock();
@@ -110,7 +112,27 @@ public class DistributedQueue {
 			if (first == 0L) {
 				return null;
 			}
-			return getEntryValue(key, first);
+			return new KeyValue().withKey(key).withValue(getEntryValue(key, first)).withOffset(first);
+		} finally {
+			lock.unlock();
+		}
+	}
+
+	public KeyValue next(byte[] key, byte[] value, long offset) {
+		Lock lock = locks.readLock(key);
+		try {
+			lock.lock();
+			long current = offset;
+			while (current != 0L) {
+				byte[] entryValue = getEntryValue(key, current);
+				QueueNodeInfo currentNode = getQueueNodeInfo(key, current);
+				if (Arrays.equals(value, entryValue)) {
+					byte[] nextValue = getEntryValue(key, currentNode.getNext());
+					return new KeyValue().withKey(key).withValue(nextValue).withOffset(currentNode.getNext());
+				}
+				offset = currentNode.getNext();
+			}
+			return null;
 		} finally {
 			lock.unlock();
 		}

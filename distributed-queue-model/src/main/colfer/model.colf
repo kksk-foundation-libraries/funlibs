@@ -38,4 +38,11 @@ type PartitionKey struct {
 type KeyValue struct {
 	key					binary
 	value				binary
+	offset				uint64
+}
+
+type SubscribedKey struct {
+	topicId				uint64
+	partition			uint32
+	subscriber			uint32
 }
