@@ -41,8 +41,29 @@ type KeyValue struct {
 	offset				uint64
 }
 
-type SubscribedKey struct {
+type AcknowledgeKey struct {
 	topicId				uint64
 	partition			uint32
 	subscriber			uint32
+}
+
+type SubscribeKey struct {
+	topicId				uint64
+	partition			uint32
+	subscriber			uint32
+}
+
+type MarkKey struct {
+	topicId				uint64
+	partition			uint32
+}
+
+type TransactionKey struct {
+	transactionId		uint64
+}
+
+type TransactionEntry struct {
+	topicId				uint64
+	key					binary
+	value				binary
 }

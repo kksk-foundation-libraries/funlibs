@@ -8,15 +8,19 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.esotericsoftware.kryo.pool.KryoPool;
 
+import funlibs.queue.model.AcknowledgeKey;
 import funlibs.queue.model.EntryKey;
 import funlibs.queue.model.EntryValue;
 import funlibs.queue.model.KeyValue;
+import funlibs.queue.model.MarkKey;
 import funlibs.queue.model.PartitionKey;
 import funlibs.queue.model.QueueInfo;
 import funlibs.queue.model.QueueKey;
 import funlibs.queue.model.QueueNodeInfo;
 import funlibs.queue.model.QueueNodeKey;
-import funlibs.queue.model.SubscribedKey;
+import funlibs.queue.model.SubscribeKey;
+import funlibs.queue.model.TransactionEntry;
+import funlibs.queue.model.TransactionKey;
 import funlibs.serializer.kryo.KryoColferSerializer;
 
 public class Serde {
@@ -33,7 +37,11 @@ public class Serde {
 		map.put(pos++, EntryValue.class);
 		map.put(pos++, PartitionKey.class);
 		map.put(pos++, KeyValue.class);
-		map.put(pos++, SubscribedKey.class);
+		map.put(pos++, TransactionKey.class);
+		map.put(pos++, TransactionEntry.class);
+		map.put(pos++, SubscribeKey.class);
+		map.put(pos++, AcknowledgeKey.class);
+		map.put(pos++, MarkKey.class);
 		pool = new KryoPool.Builder(KryoColferSerializer.factory(map)).build();
 	}
 
