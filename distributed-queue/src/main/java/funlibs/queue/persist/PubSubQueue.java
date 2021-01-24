@@ -1,5 +1,6 @@
 package funlibs.queue.persist;
 
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
 
 import funlibs.concurrent.PartitionedReadWriteLock;
@@ -16,15 +17,25 @@ public class PubSubQueue {
 	private final AtomicLong publishTransactionId = new AtomicLong();
 	private final QueueStore subscribeOffset;
 	private final Serde serde = new Serde();
+	private final int partitions;
 
 	public PubSubQueue(PartitionedReadWriteLock locks, QueueStore publishStore, QueueStore subscribeStore, int partitions) {
 		this.mainQueue = new HashPartitionedQueue(locks, publishStore, partitions);
 		this.publishQueue = new DistributedQueue(locks, publishStore);
 		this.subscribeOffset = subscribeStore;
+		this.partitions = partitions;
 	}
-	
+
 	public long newTransaction() {
 		return publishTransactionId.incrementAndGet();
+	}
+
+	public void publishAutoCommit(long topicId, byte[] key, byte[] value) {
+		mainQueue.offer(topicId, key, value);
+	}
+
+	public PublishTransaction publish(long topicId, byte[] key, byte[] value) {
+		return new PublishTransaction(this, newTransaction()).publish(topicId, key, value);
 	}
 
 	public void publish(long topicId, byte[] key, byte[] value, long transactionId) {
@@ -44,39 +55,88 @@ public class PubSubQueue {
 	}
 
 	public KeyValue subscribe(long topicId, int partition, int subscriber) {
-		// TODO
 		byte[] key;
-		byte[] value;
-		AcknowledgeKey acknowledgeKey = new AcknowledgeKey().withTopicId(topicId).withPartition(partition).withSubscriber(subscriber);
-		key = serde.ser(acknowledgeKey);
-		value = subscribeOffset.get(key);
-		KeyValue keyValue = null;
-		if (value != null) {
-			keyValue = serde.des(value, KeyValue.class);
-		} else {
-			MarkKey markKey = new MarkKey().withTopicId(topicId).withPartition(partition);
-			value = subscribeOffset.get(serde.ser(markKey));
-			if (value != null) {
-				keyValue = serde.des(value, KeyValue.class);
-			} else {
-				keyValue = mainQueue.peek(topicId, partition);
+		byte[] lastValue;
+		KeyValue next = null;
+		SubscribeKey subscribeKey = new SubscribeKey().withTopicId(topicId).withPartition(partition).withSubscriber(subscriber);
+		key = serde.ser(subscribeKey);
+		lastValue = subscribeOffset.get(key);
+		KeyValue last = null;
+		if (lastValue != null) {
+			last = serde.des(lastValue, KeyValue.class);
+			next = mainQueue.next(topicId, last.getKey(), last.getValue(), last.getOffset());
+			if (next == null) {
+				// has housekeeped.
+				lastValue = null;
 			}
 		}
-		if (keyValue != null) {
-			KeyValue next = mainQueue.next(topicId, keyValue.getKey(), keyValue.getValue(), keyValue.getOffset());
-			subscribeOffset.put(serde.ser(new SubscribeKey().withTopicId(topicId).withPartition(partition).withSubscriber(subscriber)), serde.ser(next));
+		if (lastValue == null) {
+			MarkKey markKey = new MarkKey().withTopicId(topicId).withPartition(partition);
+			lastValue = subscribeOffset.get(serde.ser(markKey));
+			if (lastValue != null) {
+				last = serde.des(lastValue, KeyValue.class);
+			} else {
+				last = mainQueue.peek(topicId, partition);
+			}
+			if (next == null) {
+				next = mainQueue.next(topicId, last.getKey(), last.getValue(), last.getOffset());
+			}
 		}
-		return keyValue;
+		if (last != null) {
+			if (next != null) {
+				subscribeOffset.put(key, serde.ser(next));
+			} else {
+				subscribeOffset.put(key, serde.ser(last));
+			}
+		}
+		return next;
 	}
 
-	public void acknowledge(long topicId, int partition, int subscriber, KeyValue keyValue) {
+	public void commitAcknowledge(long topicId, int partition, int subscriber) {
+		SubscribeKey subscribeKey = new SubscribeKey().withTopicId(topicId).withPartition(partition).withSubscriber(subscriber);
+		byte[] subscribedBin = subscribeOffset.get(serde.ser(subscribeKey));
+		if (subscribedBin != null) {
+			AcknowledgeKey acknowledgeKey = new AcknowledgeKey().withTopicId(topicId).withPartition(partition).withSubscriber(subscriber);
+			subscribeOffset.put(serde.ser(acknowledgeKey), subscribedBin);
+		}
+	}
+
+	public void rollbackAcknowledge(long topicId, int partition, int subscriber) {
 		AcknowledgeKey acknowledgeKey = new AcknowledgeKey().withTopicId(topicId).withPartition(partition).withSubscriber(subscriber);
-		subscribeOffset.put(serde.ser(acknowledgeKey), serde.ser(keyValue));
+		byte[] acknowledgedBin = subscribeOffset.get(serde.ser(acknowledgeKey));
+		if (acknowledgedBin != null) {
+			SubscribeKey subscribeKey = new SubscribeKey().withTopicId(topicId).withPartition(partition).withSubscriber(subscriber);
+			subscribeOffset.put(serde.ser(subscribeKey), acknowledgedBin);
+		}
 	}
 
 	public void mark(long topicId, int partition) {
 		MarkKey markKey = new MarkKey().withTopicId(topicId).withPartition(partition);
 		KeyValue keyValue = mainQueue.peek(topicId, partition);
 		subscribeOffset.put(serde.ser(markKey), serde.ser(keyValue));
+	}
+
+	public void houseKeep(long topicId) {
+		for (int partition = 0; partition < partitions; partition++) {
+			housekeep(topicId, partition);
+		}
+	}
+
+	public void housekeep(long topicId, int partition) {
+		MarkKey markKey = new MarkKey().withTopicId(topicId).withPartition(partition);
+		byte[] key = serde.ser(markKey);
+		byte[] value;
+		value = subscribeOffset.get(key);
+		if (value != null) {
+			KeyValue markedKeyValue = serde.des(value, KeyValue.class);
+			KeyValue keyValue;
+			while ((keyValue = mainQueue.peek(topicId, partition)) != null) {
+				if (Arrays.equals(keyValue.getKey(), markedKeyValue.getKey()) && Arrays.equals(keyValue.getKey(), markedKeyValue.getKey()) && Arrays.equals(keyValue.getKey(), markedKeyValue.getKey())) {
+					subscribeOffset.remove(key);
+					break;
+				}
+				mainQueue.poll(topicId, partition);
+			}
+		}
 	}
 }
