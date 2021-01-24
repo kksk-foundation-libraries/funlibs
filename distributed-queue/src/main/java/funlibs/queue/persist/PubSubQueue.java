@@ -54,6 +54,13 @@ public class PubSubQueue {
 		}
 	}
 
+	public void rollback(long transactionId) {
+		TransactionKey transactionKey = new TransactionKey().withTransactionId(transactionId);
+		byte[] key = serde.ser(transactionKey);
+		while (publishQueue.poll(key) != null) {
+		}
+	}
+
 	public KeyValue subscribe(long topicId, int partition, int subscriber) {
 		byte[] key;
 		byte[] lastValue;

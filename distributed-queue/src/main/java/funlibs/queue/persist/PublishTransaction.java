@@ -17,4 +17,8 @@ public class PublishTransaction {
 	public void commit() {
 		pubSubQueue.commit(transactionId);
 	}
+	
+	public void rollback() {
+		pubSubQueue.rollback(transactionId);
+	}
 }
