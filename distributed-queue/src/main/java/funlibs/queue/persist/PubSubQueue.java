@@ -26,25 +26,21 @@ public class PubSubQueue {
 		this.partitions = partitions;
 	}
 
-	public long newTransaction() {
-		return publishTransactionId.incrementAndGet();
+	public PublishTransaction newTransaction() {
+		return new PublishTransaction(this, publishTransactionId.incrementAndGet());
 	}
 
-	public void publishAutoCommit(long topicId, byte[] key, byte[] value) {
+	public void publish(long topicId, byte[] key, byte[] value) {
 		mainQueue.offer(topicId, key, value);
 	}
 
-	public PublishTransaction publish(long topicId, byte[] key, byte[] value) {
-		return new PublishTransaction(this, newTransaction()).publish(topicId, key, value);
-	}
-
-	public void publish(long topicId, byte[] key, byte[] value, long transactionId) {
+	void publish(long topicId, byte[] key, byte[] value, long transactionId) {
 		TransactionKey transactionKey = new TransactionKey().withTransactionId(transactionId);
 		TransactionEntry transactionEntry = new TransactionEntry().withTopicId(topicId).withKey(key).withValue(value);
 		publishQueue.offer(serde.ser(transactionKey), serde.ser(transactionEntry));
 	}
 
-	public void commit(long transactionId) {
+	void commit(long transactionId) {
 		TransactionKey transactionKey = new TransactionKey().withTransactionId(transactionId);
 		byte[] key = serde.ser(transactionKey);
 		KeyValue kv;
@@ -54,7 +50,7 @@ public class PubSubQueue {
 		}
 	}
 
-	public void rollback(long transactionId) {
+	void rollback(long transactionId) {
 		TransactionKey transactionKey = new TransactionKey().withTransactionId(transactionId);
 		byte[] key = serde.ser(transactionKey);
 		while (publishQueue.poll(key) != null) {
@@ -85,16 +81,12 @@ public class PubSubQueue {
 			} else {
 				last = mainQueue.peek(topicId, partition);
 			}
-			if (next == null) {
+			if (last != null) {
 				next = mainQueue.next(topicId, last.getKey(), last.getValue(), last.getOffset());
 			}
 		}
 		if (last != null) {
-			if (next != null) {
-				subscribeOffset.put(key, serde.ser(next));
-			} else {
-				subscribeOffset.put(key, serde.ser(last));
-			}
+			subscribeOffset.put(key, serde.ser(last));
 		}
 		return next;
 	}
