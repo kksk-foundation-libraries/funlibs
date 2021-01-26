@@ -34,6 +34,8 @@ public class SubscribeKey implements Serializable {
 
 	public int partition;
 
+	public byte[] key;
+
 	public int subscriber;
 
 	/** Default constructor */
@@ -41,9 +43,11 @@ public class SubscribeKey implements Serializable {
 		init();
 	}
 
+	private static final byte[] _zeroBytes = new byte[0];
 
 	/** Colfer zero values. */
 	private void init() {
+		key = _zeroBytes;
 	}
 
 	/**
@@ -139,7 +143,7 @@ public class SubscribeKey implements Serializable {
 	 * @return the number of bytes.
 	 */
 	public int marshalFit() {
-		long n = 1L + 9 + 5 + 5;
+		long n = 1L + 9 + 5 + 6 + (long)this.key.length + 5;
 		if (n < 0 || n > (long)SubscribeKey.colferSizeMax) return SubscribeKey.colferSizeMax;
 		return (int) n;
 	}
@@ -217,15 +221,34 @@ public class SubscribeKey implements Serializable {
 				buf[i++] = (byte) x;
 			}
 
+			if (this.key.length != 0) {
+				buf[i++] = (byte) 2;
+
+				int size = this.key.length;
+				if (size > SubscribeKey.colferSizeMax)
+					throw new IllegalStateException(format("colfer: funlibs.queue/model.SubscribeKey.key size %d exceeds %d bytes", size, SubscribeKey.colferSizeMax));
+
+				int x = size;
+				while (x > 0x7f) {
+					buf[i++] = (byte) (x | 0x80);
+					x >>>= 7;
+				}
+				buf[i++] = (byte) x;
+
+				int start = i;
+				i += size;
+				System.arraycopy(this.key, 0, buf, start, size);
+			}
+
 			if (this.subscriber != 0) {
 				int x = this.subscriber;
 				if ((x & ~((1 << 21) - 1)) != 0) {
-					buf[i++] = (byte) (2 | 0x80);
+					buf[i++] = (byte) (3 | 0x80);
 					buf[i++] = (byte) (x >>> 24);
 					buf[i++] = (byte) (x >>> 16);
 					buf[i++] = (byte) (x >>> 8);
 				} else {
-					buf[i++] = (byte) 2;
+					buf[i++] = (byte) 3;
 					while (x > 0x7f) {
 						buf[i++] = (byte) (x | 0x80);
 						x >>>= 7;
@@ -307,6 +330,24 @@ public class SubscribeKey implements Serializable {
 			}
 
 			if (header == (byte) 2) {
+				int size = 0;
+				for (int shift = 0; true; shift += 7) {
+					byte b = buf[i++];
+					size |= (b & 0x7f) << shift;
+					if (shift == 28 || b >= 0) break;
+				}
+				if (size < 0 || size > SubscribeKey.colferSizeMax)
+					throw new SecurityException(format("colfer: funlibs.queue/model.SubscribeKey.key size %d exceeds %d bytes", size, SubscribeKey.colferSizeMax));
+
+				this.key = new byte[size];
+				int start = i;
+				i += size;
+				System.arraycopy(buf, start, this.key, 0, size);
+
+				header = buf[i++];
+			}
+
+			if (header == (byte) 3) {
 				int x = 0;
 				for (int shift = 0; true; shift += 7) {
 					byte b = buf[i++];
@@ -315,7 +356,7 @@ public class SubscribeKey implements Serializable {
 				}
 				this.subscriber = x;
 				header = buf[i++];
-			} else if (header == (byte) (2 | 0x80)) {
+			} else if (header == (byte) (3 | 0x80)) {
 				this.subscriber = (buf[i++] & 0xff) << 24 | (buf[i++] & 0xff) << 16 | (buf[i++] & 0xff) << 8 | (buf[i++] & 0xff);
 				header = buf[i++];
 			}
@@ -333,7 +374,7 @@ public class SubscribeKey implements Serializable {
 	}
 
 	// {@link Serializable} version number.
-	private static final long serialVersionUID = 3L;
+	private static final long serialVersionUID = 4L;
 
 	// {@link Serializable} Colfer extension.
 	private void writeObject(ObjectOutputStream out) throws IOException {
@@ -411,6 +452,32 @@ public class SubscribeKey implements Serializable {
 	}
 
 	/**
+	 * Gets funlibs.queue/model.SubscribeKey.key.
+	 * @return the value.
+	 */
+	public byte[] getKey() {
+		return this.key;
+	}
+
+	/**
+	 * Sets funlibs.queue/model.SubscribeKey.key.
+	 * @param value the replacement.
+	 */
+	public void setKey(byte[] value) {
+		this.key = value;
+	}
+
+	/**
+	 * Sets funlibs.queue/model.SubscribeKey.key.
+	 * @param value the replacement.
+	 * @return {@code this}.
+	 */
+	public SubscribeKey withKey(byte[] value) {
+		this.key = value;
+		return this;
+	}
+
+	/**
 	 * Gets funlibs.queue/model.SubscribeKey.subscriber.
 	 * @return the value.
 	 */
@@ -441,6 +508,7 @@ public class SubscribeKey implements Serializable {
 		int h = 1;
 		h = 31 * h + (int)(this.topicId ^ this.topicId >>> 32);
 		h = 31 * h + this.partition;
+		for (byte b : this.key) h = 31 * h + b;
 		h = 31 * h + this.subscriber;
 		return h;
 	}
@@ -456,6 +524,7 @@ public class SubscribeKey implements Serializable {
 
 		return this.topicId == o.topicId
 			&& this.partition == o.partition
+			&& java.util.Arrays.equals(this.key, o.key)
 			&& this.subscriber == o.subscriber;
 	}
 

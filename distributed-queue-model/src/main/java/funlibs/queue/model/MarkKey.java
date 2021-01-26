@@ -34,14 +34,18 @@ public class MarkKey implements Serializable {
 
 	public int partition;
 
+	public byte[] key;
+
 	/** Default constructor */
 	public MarkKey() {
 		init();
 	}
 
+	private static final byte[] _zeroBytes = new byte[0];
 
 	/** Colfer zero values. */
 	private void init() {
+		key = _zeroBytes;
 	}
 
 	/**
@@ -137,7 +141,7 @@ public class MarkKey implements Serializable {
 	 * @return the number of bytes.
 	 */
 	public int marshalFit() {
-		long n = 1L + 9 + 5;
+		long n = 1L + 9 + 5 + 6 + (long)this.key.length;
 		if (n < 0 || n > (long)MarkKey.colferSizeMax) return MarkKey.colferSizeMax;
 		return (int) n;
 	}
@@ -215,6 +219,25 @@ public class MarkKey implements Serializable {
 				buf[i++] = (byte) x;
 			}
 
+			if (this.key.length != 0) {
+				buf[i++] = (byte) 2;
+
+				int size = this.key.length;
+				if (size > MarkKey.colferSizeMax)
+					throw new IllegalStateException(format("colfer: funlibs.queue/model.MarkKey.key size %d exceeds %d bytes", size, MarkKey.colferSizeMax));
+
+				int x = size;
+				while (x > 0x7f) {
+					buf[i++] = (byte) (x | 0x80);
+					x >>>= 7;
+				}
+				buf[i++] = (byte) x;
+
+				int start = i;
+				i += size;
+				System.arraycopy(this.key, 0, buf, start, size);
+			}
+
 			buf[i++] = (byte) 0x7f;
 			return i;
 		} catch (ArrayIndexOutOfBoundsException e) {
@@ -287,6 +310,24 @@ public class MarkKey implements Serializable {
 				header = buf[i++];
 			}
 
+			if (header == (byte) 2) {
+				int size = 0;
+				for (int shift = 0; true; shift += 7) {
+					byte b = buf[i++];
+					size |= (b & 0x7f) << shift;
+					if (shift == 28 || b >= 0) break;
+				}
+				if (size < 0 || size > MarkKey.colferSizeMax)
+					throw new SecurityException(format("colfer: funlibs.queue/model.MarkKey.key size %d exceeds %d bytes", size, MarkKey.colferSizeMax));
+
+				this.key = new byte[size];
+				int start = i;
+				i += size;
+				System.arraycopy(buf, start, this.key, 0, size);
+
+				header = buf[i++];
+			}
+
 			if (header != (byte) 0x7f)
 				throw new InputMismatchException(format("colfer: unknown header at byte %d", i - 1));
 		} finally {
@@ -300,7 +341,7 @@ public class MarkKey implements Serializable {
 	}
 
 	// {@link Serializable} version number.
-	private static final long serialVersionUID = 2L;
+	private static final long serialVersionUID = 3L;
 
 	// {@link Serializable} Colfer extension.
 	private void writeObject(ObjectOutputStream out) throws IOException {
@@ -377,11 +418,38 @@ public class MarkKey implements Serializable {
 		return this;
 	}
 
+	/**
+	 * Gets funlibs.queue/model.MarkKey.key.
+	 * @return the value.
+	 */
+	public byte[] getKey() {
+		return this.key;
+	}
+
+	/**
+	 * Sets funlibs.queue/model.MarkKey.key.
+	 * @param value the replacement.
+	 */
+	public void setKey(byte[] value) {
+		this.key = value;
+	}
+
+	/**
+	 * Sets funlibs.queue/model.MarkKey.key.
+	 * @param value the replacement.
+	 * @return {@code this}.
+	 */
+	public MarkKey withKey(byte[] value) {
+		this.key = value;
+		return this;
+	}
+
 	@Override
 	public final int hashCode() {
 		int h = 1;
 		h = 31 * h + (int)(this.topicId ^ this.topicId >>> 32);
 		h = 31 * h + this.partition;
+		for (byte b : this.key) h = 31 * h + b;
 		return h;
 	}
 
@@ -395,7 +463,8 @@ public class MarkKey implements Serializable {
 		if (o == this) return true;
 
 		return this.topicId == o.topicId
-			&& this.partition == o.partition;
+			&& this.partition == o.partition
+			&& java.util.Arrays.equals(this.key, o.key);
 	}
 
 }

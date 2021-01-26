@@ -44,18 +44,21 @@ type KeyValue struct {
 type AcknowledgeKey struct {
 	topicId				uint64
 	partition			uint32
+	key					binary
 	subscriber			uint32
 }
 
 type SubscribeKey struct {
 	topicId				uint64
 	partition			uint32
+	key					binary
 	subscriber			uint32
 }
 
 type MarkKey struct {
 	topicId				uint64
 	partition			uint32
+	key					binary
 }
 
 type TransactionKey struct {
