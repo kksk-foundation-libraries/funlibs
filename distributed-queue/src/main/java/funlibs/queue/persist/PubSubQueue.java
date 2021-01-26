@@ -130,7 +130,7 @@ public class PubSubQueue {
 			KeyValue markedKeyValue = serde.des(value, KeyValue.class);
 			KeyValue keyValue;
 			while ((keyValue = mainQueue.peek(topicId, partition)) != null) {
-				if (Arrays.equals(keyValue.getKey(), markedKeyValue.getKey()) && Arrays.equals(keyValue.getKey(), markedKeyValue.getKey()) && Arrays.equals(keyValue.getKey(), markedKeyValue.getKey())) {
+				if (Arrays.equals(keyValue.getKey(), markedKeyValue.getKey()) && Arrays.equals(keyValue.getValue(), markedKeyValue.getValue()) && keyValue.getOffset() == markedKeyValue.getOffset()) {
 					subscribeOffset.remove(key);
 					break;
 				}

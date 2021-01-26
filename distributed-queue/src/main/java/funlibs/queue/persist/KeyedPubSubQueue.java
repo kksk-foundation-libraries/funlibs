@@ -121,7 +121,7 @@ public class KeyedPubSubQueue {
 			KeyValue markedKeyValue = serde.des(value, KeyValue.class);
 			KeyValue keyValue;
 			while ((keyValue = mainQueue.peek(key)) != null) {
-				if (Arrays.equals(keyValue.getKey(), markedKeyValue.getKey()) && Arrays.equals(keyValue.getKey(), markedKeyValue.getKey()) && Arrays.equals(keyValue.getKey(), markedKeyValue.getKey())) {
+				if (Arrays.equals(keyValue.getValue(), markedKeyValue.getValue()) && keyValue.getOffset() == markedKeyValue.getOffset()) {
 					subscribeOffset.remove(markKeyBin);
 					break;
 				}
