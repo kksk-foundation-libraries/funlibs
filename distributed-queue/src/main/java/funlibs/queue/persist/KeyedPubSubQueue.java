@@ -108,7 +108,7 @@ public class KeyedPubSubQueue {
 
 	public void mark(byte[] key) {
 		MarkKey markKey = new MarkKey().withKey(key);
-		KeyValue keyValue = mainQueue.peek(key);
+		KeyValue keyValue = mainQueue.last(key);
 		subscribeOffset.put(serde.ser(markKey), serde.ser(keyValue));
 	}
 

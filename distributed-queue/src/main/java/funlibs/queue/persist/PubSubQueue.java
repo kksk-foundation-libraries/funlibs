@@ -111,7 +111,7 @@ public class PubSubQueue {
 
 	public void mark(long topicId, int partition) {
 		MarkKey markKey = new MarkKey().withTopicId(topicId).withPartition(partition);
-		KeyValue keyValue = mainQueue.peek(topicId, partition);
+		KeyValue keyValue = mainQueue.last(topicId, partition);
 		subscribeOffset.put(serde.ser(markKey), serde.ser(keyValue));
 	}
 

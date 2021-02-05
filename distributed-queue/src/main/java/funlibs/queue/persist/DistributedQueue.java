@@ -118,6 +118,21 @@ public class DistributedQueue {
 		}
 	}
 
+	public KeyValue last(byte[] key) {
+		Lock lock = locks.readLock(key);
+		try {
+			lock.lock();
+			QueueInfo queueInfo = getQueueInfo(key);
+			long last = queueInfo.getLast();
+			if (last == 0L) {
+				return null;
+			}
+			return new KeyValue().withKey(key).withValue(getEntryValue(key, last)).withOffset(last);
+		} finally {
+			lock.unlock();
+		}
+	}
+
 	public KeyValue next(byte[] key, byte[] value, long offset) {
 		Lock lock = locks.readLock(key);
 		try {
@@ -130,7 +145,7 @@ public class DistributedQueue {
 					byte[] nextValue = getEntryValue(key, currentNode.getNext());
 					return new KeyValue().withKey(key).withValue(nextValue).withOffset(currentNode.getNext());
 				}
-				offset = currentNode.getNext();
+				current = currentNode.getNext();
 			}
 			return null;
 		} finally {

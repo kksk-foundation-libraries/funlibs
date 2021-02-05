@@ -60,6 +60,15 @@ public class HashPartitionedQueue {
 		return serde.des(queueValue.getValue(), KeyValue.class).withOffset(queueValue.getOffset());
 	}
 
+	public KeyValue last(long topicId, int partition) {
+		byte[] queueKey = serde.ser(new PartitionKey().withTopicId(topicId).withPartition(partition));
+		KeyValue queueValue = queue.last(queueKey);
+		if (queueValue == null || queueValue.getValue() == null) {
+			return null;
+		}
+		return serde.des(queueValue.getValue(), KeyValue.class).withOffset(queueValue.getOffset());
+	}
+
 	public KeyValue next(long topicId, byte[] key, byte[] value, long offset) {
 		byte[] queueKey = serde.ser(new PartitionKey().withTopicId(topicId).withPartition(Math.abs(Arrays.hashCode(key)) % partitions));
 		byte[] queueValue = serde.ser(new KeyValue().withKey(key).withValue(value));
